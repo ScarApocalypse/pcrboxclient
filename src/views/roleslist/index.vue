@@ -10,7 +10,7 @@
         {{ isColl }}
       </el-button>
       <el-button type="primary" @click="showAddBoxDialog()">
-        添加Box
+        添加box
         <i class="el-icon-plus el-icon--right"></i
       ></el-button>
     </el-button-group>
@@ -41,18 +41,42 @@
             :class="'icon R' + item2.rank"
           ></el-image>
         </el-tooltip>
+
         <el-button
           type="primary"
-          icon="el-icon-delete el-lcon-right"
-          @click="deleteBox(item)"
+          icon="el-icon-edit"
+          @click="editBox(item)"
           style="float:left;width:54px;height:54px"
         ></el-button>
+
+        <el-popconfirm
+          :title="`确认删除${item.owner}的Box吗？`"
+          @onConfirm="deleteBox(item)"
+        >
+          <el-button
+            slot="reference"
+            type="primary"
+            icon="el-icon-delete"
+            style="float:left;width:54px;height:54px;margin-left:1px;"
+          >
+          </el-button>
+        </el-popconfirm>
       </el-collapse-item>
     </el-collapse>
 
-    <el-dialog title="添加box" :visible.sync="addBoxDialogVisible" width="94%">
+    <el-dialog
+      :title="isEdit ? '修改Box' : '添加Box'"
+      :visible.sync="addBoxDialogVisible"
+      width="94%"
+      fullscreen
+      @close="handleClose()"
+    >
       <div>
-        <el-input placeholder="请输入内容" v-model="boxForm.owner">
+        <el-input
+          placeholder="请输入内容"
+          v-model="boxForm.owner"
+          :disabled="isEdit"
+        >
           <template slot="prepend">ID</template>
         </el-input>
       </div>
@@ -158,6 +182,7 @@ export default {
       allActiveName: [],
       addBoxDialogVisible: false,
       addRoleDialogVisible: false,
+      isEdit: false,
       box: [],
 
       hideBoxMap: {},
@@ -305,6 +330,10 @@ export default {
       this.boxForm.roles.splice(deleteIndex, 1)
     },
     async addBox() {
+      if (this.isEdit) {
+        return this.submitEditBox()
+      }
+
       if (!this.boxForm.owner.trim()) {
         return this.$message.error("id不能为空")
       }
@@ -343,6 +372,43 @@ export default {
         this.getList()
       } else {
         this.$message.error("删除box失败")
+      }
+    },
+    editBox(item) {
+      console.log(item)
+      this.isEdit = true
+      this.boxForm = { owner: item.owner, roles: [] }
+      item.roles.forEach(obj => {
+        let newObj = { ...obj }
+        this.boxForm.roles.push(newObj)
+      })
+      this.boxForm.roles.forEach((item, index, arr) => {
+        arr[index].icon = this.iconUrl + item.icon + ".png"
+        this.$set(this.hideBoxMap, item.name, true)
+      })
+      this.addBoxDialogVisible = true
+    },
+    handleClose() {
+      this.isEdit = false
+      this.getList()
+    },
+    async submitEditBox() {
+      for (let item of this.boxForm.roles) {
+        item.owner = this.boxForm.owner
+        if (!item.roleId) {
+          item.roleId = item.rolesId
+        }
+      }
+      if (this.boxForm.roles.length == 0) {
+        return this.$message.error("不能将Box修改为空")
+      }
+
+      const res = await this.$http.post("editbox", this.boxForm.roles)
+      if (res.data.code == 0) {
+        this.addBoxDialogVisible = false
+        this.$message.success("修改成功")
+      } else {
+        this.$message.error("修改失败")
       }
     }
   }
@@ -401,7 +467,11 @@ export default {
   float: left;
   border: 2px solid skyblue;
 }
-
+.R1,
+.R2,
+.R3,
+.R4,
+.R5,
 .R6 {
   float: left;
   border: 2px solid #ccc;
